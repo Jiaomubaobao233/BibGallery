@@ -1,23 +1,14 @@
 __author__ = "Yefan Zhi"
 
-import os.path
 import os
 import pandas as pd
 from doi2bib import crossref
 import shutil
 import fitz
-from pybtex.database import parse_string
 import re
 import codecs
 import bibtexparser
 import bibtexparser.middlewares as bm
-
-
-def format_bib_str(bibtex_string):
-    bib_data = parse_string(bibtex_string, 'bibtex')
-    # Convert the parsed data back to a formatted BibTeX string
-    formatted_bibtex = bib_data.to_string('bibtex')
-    return formatted_bibtex
 
 
 def analyse_short_code(string):
@@ -361,13 +352,13 @@ class Bib():
         def get_bibtex_from_doi(doi_str):
             try:
                 _, bib_str = crossref.get_bib(doi_str)
-                return format_bib_str(bib_str)
+                return main_parser(bib_str)
             except Exception as e:
                 return f"Error: {str(e)}"
 
         def get_short_codes_from_bib_str(bib_str):
             short_codes_set = set()
-            entries = format_bib_str(bib_str).split('\n\n\n')
+            entries = main_parser(bib_str).split('\n\n\n')
             for i in range(len(entries)):
                 short_codes_set.add(entries[i].split("{", 1)[1].split(",", 1)[0])
             return short_codes_set
@@ -443,7 +434,7 @@ class Bib():
                 # print("- Updating bibtex of category: ", category_name)
                 with codecs.open(bibtex_file_path, 'r', "utf-8") as file:
                     bibtex_data = file.read()
-                bibtex_data = format_bib_str(bibtex_data)
+                bibtex_data = main_parser(bibtex_data)
                 # Split the BibTeX entries
                 entries = bibtex_data.split('\n\n\n')
                 for i in range(len(entries)):
@@ -495,7 +486,7 @@ class Bib():
                 # print("- Updating bibtex of category: ", category_name)
                 with codecs.open(bibtex_file_path, 'r', 'utf-8') as file:
                     bibtex_data = file.read()
-                bibtex_data = format_bib_str(bibtex_data)
+                bibtex_data = main_parser(bibtex_data)
                 # Split the BibTeX entries
                 entries = bibtex_data.split('\n\n\n')
                 for i in range(len(entries)):
