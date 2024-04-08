@@ -52,6 +52,7 @@ def main_parser(bibtex_string):
     # https://bibtexparser.readthedocs.io/en/main/
     # https://stackoverflow.com/questions/491921/unicode-utf-8-reading-and-writing-to-files-in-python
     # https://bibtexparser.readthedocs.io/en/main/customize.html
+    bibtex_string = bibtex_string.replace("\&", "&").replace("&", "\&")
     bib_database = bibtexparser.parse_string(
         bibtex_string, append_middleware=[bm.LatexDecodingMiddleware(),
                                           bm.SortBlocksByTypeAndKeyMiddleware()])
