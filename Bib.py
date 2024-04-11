@@ -8,6 +8,7 @@ import re
 import codecs
 import bibtexparser
 import bibtexparser.middlewares as bm
+import pathlib
 
 
 def analyse_short_code(string):
@@ -90,6 +91,11 @@ class Bib():
         self.html_path = os.path.join(root_folder_path, html_folder)
         self.pdf_collect_path = os.path.join(root_folder_path, pdf_collect_folder)
         self.io_path = os.path.join(root_folder_path, io_folder)
+
+        if os.path.isabs(root_folder_path):
+            self.root_folder_path_absolute = self.root_folder_path
+        else:
+            self.root_folder_path_absolute = pathlib.Path(os.path.realpath(__file__)).parent.absolute()
         # pdf2bib.config.set('save_identifier_metadata', False)
         pdf2bib.config.set('verbose', False)
 
@@ -268,7 +274,7 @@ class Bib():
                 return category, -int(year), author, title
 
             image_list.sort(key=sort_key)
-
+            folder_path_absolute = os.path.join(self.root_folder_path_absolute, folder_path).replace('\\', '/')
             html = '''
             <html>
             <head>
@@ -302,13 +308,13 @@ class Bib():
                         break
                 if pdf_file:
                     hyperlink = '<a href="{}/{}"><img src="file:///{}/{}" alt="{}"></a>'.format(
-                        folder_path.replace('\\', '/'), pdf_file.replace('\\', '/'), folder_path.replace('\\', '/'),
+                        folder_path_absolute, pdf_file.replace('\\', '/'), folder_path_absolute,
                         image,
                         image
                     )
                 else:
                     hyperlink = '<img src="file:///{}/{}" alt="{}">'.format(
-                        folder_path.replace('\\', '/'), image, image
+                        folder_path_absolute, image, image
                     )
 
                 html += '<div class="image">{}</div>'.format(hyperlink)
