@@ -2,9 +2,8 @@ __author__ = "Yefan Zhi"
 
 import os
 import pandas as pd
-from doi2bib import crossref
+import pdf2bib
 import shutil
-import fitz
 import re
 import codecs
 import bibtexparser
@@ -52,11 +51,18 @@ def main_parser(bibtex_string):
     # https://bibtexparser.readthedocs.io/en/main/
     # https://stackoverflow.com/questions/491921/unicode-utf-8-reading-and-writing-to-files-in-python
     # https://bibtexparser.readthedocs.io/en/main/customize.html
-    bibtex_string = bibtex_string.replace("\&", "&").replace("&", "\&")
+    bibtex_string = bibtex_string.replace("\\" + "&", "&").replace("&", "\\" + "&")
     bib_database = bibtexparser.parse_string(
         bibtex_string, append_middleware=[bm.LatexDecodingMiddleware(),
                                           bm.SortBlocksByTypeAndKeyMiddleware()])
     return bibtexparser.write_string(bib_database).replace("https://doi.org/", "")
+
+
+def analyze_bibtex_single_item(bibtex_string):
+    bib_database = bibtexparser.parse_string(
+        bibtex_string, append_middleware=[bm.SeparateCoAuthors(),  # Co-authors should be separated as list of strings
+                                          bm.SplitNameParts()])
+    return bib_database.entries[0]
 
 
 def latex_encode(bibtex_string):
@@ -84,21 +90,22 @@ class Bib():
         self.html_path = os.path.join(root_folder_path, html_folder)
         self.pdf_collect_path = os.path.join(root_folder_path, pdf_collect_folder)
         self.io_path = os.path.join(root_folder_path, io_folder)
+        # pdf2bib.config.set('save_identifier_metadata', False)
+        pdf2bib.config.set('verbose', False)
 
     def check(self, show_incomplete=True, check_books=False):
 
         def new_short_code(df, category, string):
             if debug_switch: print("short_code: ", string)
             _, _, theme, _ = analyse_short_code(string)
-            df = pd.concat([df, pd.DataFrame({"Category": [category],
-                                              "Theme": [theme],
-                                              "Title": [""],
-                                              "t": [""],
-                                              "Type": [""],
-                                              "B": [0],
-                                              "P": [0],
-                                              "Link": [""]}, index=[string])])
-            return df
+            return pd.concat([df, pd.DataFrame({"Category": [category],
+                                                "Theme": [theme],
+                                                "Title": [""],
+                                                "t": [""],
+                                                "Type": [""],
+                                                "B": [0],
+                                                "P": [0],
+                                                "Link": [""]}, index=[string])])
 
         print("[CHECK]")
         df = pd.DataFrame(columns=["Category", "Theme", "Type", "t", "B", "P", "Title", "Link"])
@@ -130,11 +137,11 @@ class Bib():
 
                         if short_code not in df.index:
                             df = new_short_code(df, category_name, short_code)
-                            df.loc[short_code]["Title"] = title
+                            df.loc[short_code, "Title"] = title
                         if file_type.lower() == "pdf":
-                            df.loc[short_code]["Link"] = "[](<" + os.path.join(category_path,
+                            df.loc[short_code, "Link"] = "[](<" + os.path.join(category_path,
                                                                                file_name) + ">)"
-                        if file_type.lower() in ["jpg", "png"]: df.loc[short_code]["P"] += 1
+                        if file_type.lower() in ["jpg", "png"]: df.loc[short_code, "P"] += 1
 
                 # 5. Import literature from bibtex files into DataFrame
                 with codecs.open(bibtex_file_path, "r", "utf-8") as file:
@@ -144,11 +151,10 @@ class Bib():
                     bib_type, short_code = entry.split("{", 1)
                     short_code = short_code.split(",", 1)[0]
                     short_code = category_name + "::" + short_code
-                    # if short_code not in skip_bib:
                     if short_code not in df.index:
                         df = new_short_code(df, category_name, short_code)
-                    df.loc[short_code]["Type"] = bib_type[1:]
-                    df.loc[short_code]["B"] += 1
+                    df.loc[short_code, "Type"] = bib_type[1:]
+                    df.loc[short_code, "B"] += 1
 
         print("√ Bib/PDF/Image imported into the DataFrame")
         print("√ Bibtex files updated in", self.bibtex_path)
@@ -339,24 +345,6 @@ class Bib():
             valid_filename = valid_filename.strip()
             return valid_filename
 
-        def get_metadata_from_pdf(pdf_path):
-            try:
-                # print(pdf_path)
-                doc = fitz.open(pdf_path)
-                got_metadata = doc.metadata
-                # print(got_metadata)
-                doc.close()
-                return got_metadata
-            except Exception as e:
-                return f"Error: {str(e)}"
-
-        def get_bibtex_from_doi(doi_str):
-            try:
-                _, bib_str = crossref.get_bib(doi_str)
-                return main_parser(bib_str)
-            except Exception as e:
-                return f"Error: {str(e)}"
-
         def get_short_codes_from_bib_str(bib_str):
             short_codes_set = set()
             entries = main_parser(bib_str).split('\n\n\n')
@@ -367,11 +355,15 @@ class Bib():
         def move_file(source_path, destination_path):
             try:
                 shutil.move(source_path, destination_path)
-                # print(f"File moved to '{destination_path}'.")
             except FileNotFoundError:
                 raise NameError(f"File '{source_path}' not found.")
             except Exception as e:
                 raise NameError(f"Error: {str(e)}")
+
+        def bib_single_new_short_code(bib, short_code):
+            left = bib.split("{")[0]
+            right = bib.split(",", 1)[1]
+            return left + "{" + short_code + "," + right
 
         print("[COLLECT]")
         count_collected = 0
@@ -384,39 +376,38 @@ class Bib():
                 bibtex_data = file.read()
             short_codes = get_short_codes_from_bib_str(bibtex_data)
             for pdf_file in os.listdir(category_folder_path):
+                pdf_file_path = os.path.join(category_folder_path, pdf_file)
+
                 if pdf_file[-4:] != ".pdf": continue
-                count_collected += 1
-                # print("-Processing:", pdf_file)
                 theme = pdf_file[:-4].strip()
-                # print(theme)
-                metadata_dict = get_metadata_from_pdf(os.path.join(category_folder_path, pdf_file))
-                author = metadata_dict["author"]
-                if "," in author: author = author.split(",")[0]
-                if author == "":
-                    raise NameError("Failed to decode " + pdf_file)
-                author = author.split(" ")[-1]
-                title = metadata_dict["title"]
-                doi = metadata_dict["subject"].split(" ")[-1]
-                year = metadata_dict["subject"].split("(")[1].split(")")[0]
-                short_code = author.capitalize() + "-" + year + "-" + theme
+                result = pdf2bib.pdf2bib(pdf_file_path)
+                bib_string = result['bibtex']
+
+                bibtex_single_item = analyze_bibtex_single_item(bib_string)
+                short_code = bibtex_single_item["author"][0].last[0] + "-" + bibtex_single_item["year"] + "-" + theme
+
+                bib_string = bib_single_new_short_code(bib_string, short_code)
+
                 if short_code in short_codes:
                     raise NameError("Short code collision " + short_code)
-                new_file_name = make_valid_filename(short_code + " " + title + ".pdf")
-                # print(new_file_name)
-                bib = get_bibtex_from_doi(doi)
-                left = bib.split("{")[0]
-                right = bib.split(",", 1)[1]
-                bib = left + "{" + short_code + "," + right
-                os.rename(os.path.join(category_folder_path, pdf_file),
-                          os.path.join(category_folder_path, new_file_name))
-                print("√ Updated", pdf_file, "as", new_file_name)
-                move_file(os.path.join(category_folder_path, new_file_name),
-                          os.path.join(os.path.join(self.root_folder_path, category), new_file_name))
-                write_to_end_of_file(os.path.join(self.bibtex_path, category + ".bib"), "\n\n" + bib + "\n")
-                print("√ Added Bibtex of length", len(bib), "to", os.path.join(self.bibtex_path, category + ".bib"))
-                print("√ Moved the PDF from", category_folder_path, "to", os.path.join(self.root_folder_path, category))
+                new_file_name = make_valid_filename(short_code + " " + bibtex_single_item["title"] + ".pdf")
+
+                print(bib_string)
+                print("? Collect '" + os.path.join(category_folder_path, pdf_file) + "' as '" + new_file_name + "'")
+                decision = input("  and collect the above bibtex string ([y]/n)?")
+                if decision.strip() in ["", "y", "Y"]:
+                    move_file(pdf_file_path,
+                              os.path.join(os.path.join(self.pdf_path, category), new_file_name))
+                    write_to_end_of_file(os.path.join(self.bibtex_path, category + ".bib"), "\n\n" + bib_string + "\n")
+                    print("√ Renamed '" + pdf_file + "' as '" + new_file_name + "'")
+                    print("√ Moved the PDF from '" + category_folder_path + "' to '" + \
+                          os.path.join(self.root_folder_path, category) + "'")
+                    print("√ Added Bibtex to '" + os.path.join(self.bibtex_path, category + ".bib'"))
+                    count_collected += 1
+                else:
+                    print("  Nothing changed for this item.")
         if count_collected == 0:
-            print("√ Nothing to collect")
+            print("√ Nothing collected")
         else:
             print("√ Collected", count_collected, "sources")
         print()
