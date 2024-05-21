@@ -275,6 +275,7 @@ class Bib():
 
             image_list.sort(key=sort_key)
             folder_path_absolute = os.path.join(self.root_folder_path_absolute, folder_path).replace('\\', '/')
+            placeholder = "https://upload.wikimedia.org/wikipedia/commons/thumb/8/87/PDF_file_icon.svg/195px-PDF_file_icon.svg.png"
             html = '''
             <html>
             <head>
@@ -295,6 +296,7 @@ class Bib():
             <body>
             '''
             themes = [analyse_short_code(x.split(" ", 1)[0])[2] for x in image_list]
+            found_short_codes = set()
             for i, image in enumerate(image_list):
                 # Create the hyperlink to the corresponding PDF file
 
@@ -316,8 +318,24 @@ class Bib():
                     hyperlink = '<img src="file:///{}/{}" alt="{}">'.format(
                         folder_path_absolute, image, image
                     )
-
+                found_short_codes.add(image_name)
                 html += '<div class="image">{}</div>'.format(hyperlink)
+                
+                if (i == len(image_list) - 1) or (themes[i] != themes[i + 1]):
+                    # add pubs without images
+                    for file in os.listdir(folder_path):
+                        if file.lower().endswith('.pdf'):
+                            short_code = file.split(" ", 1)[0]
+                            author, year, theme, suffix = analyse_short_code(short_code)
+                            if (theme == themes[i - 1]) and (short_code not in found_short_codes):
+                                print("  No images for", file.split(" ", 1)[0])
+                                hyperlink = '<a href="{}/{}"><img src="{}" alt="{}"></a>'.format(
+                                    folder_path_absolute, file.replace('\\', '/'),
+                                    placeholder,
+                                    placeholder
+                                )
+                                html += '<div class="image">{}</div>'.format(hyperlink)
+                    found_short_codes = set()
             html += '''
             </body>
             </html>
