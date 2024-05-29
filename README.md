@@ -14,8 +14,7 @@ I wrote BibGallery since my notes are essentially screenshots and I would like t
 ## Preparations
 
 BibGallery relies
-on [pdf2bib](https://github.com/MicheleCotrufo/pdf2bib), [BibtexParser](https://bibtexparser.readthedocs.io/en/main/), [PyMuPDF](https://pymupdf.readthedocs.io/en/latest/index.html),
-and [Pandas](https://pandas.pydata.org/).
+on [pdf2bib](https://github.com/MicheleCotrufo/pdf2bib), [BibtexParser](https://bibtexparser.readthedocs.io/en/main/), [PyMuPDF](https://pymupdf.readthedocs.io/en/latest/index.html), [watchdog](https://github.com/gorakhargosh/watchdog), and [Pandas](https://pandas.pydata.org/).
 
 BibGallery works best in [Visual Studio Code](https://code.visualstudio.com/) where you can easily navigate between
 files.
@@ -70,6 +69,10 @@ Encode the BibTeX for LaTeX and save them as separate files.
 ### `Bib.generate_html_files(self)`
 
 Generate HTML galleries using the pictures. Pictures are grouped by theme and titles link to the PDF files. Uses the .csv results saved in `Bib.check(self)`.
+
+### `Bib.gallery_watch(self)`
+
+Update HTML galleries automatically each time a new screenshot is saved.
 
 ### `Bib.collect(self)`
 

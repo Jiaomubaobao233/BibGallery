@@ -9,7 +9,9 @@ import codecs
 import bibtexparser
 import bibtexparser.middlewares as bm
 import pathlib
-
+from watchdog.observers import Observer
+from watchdog.events import FileSystemEventHandler
+import time
 
 def analyse_short_code(string):
     string = string.split("::")[-1]
@@ -167,8 +169,8 @@ class Bib():
                     df.loc[short_code, "Type"] = bib_type[1:]
                     df.loc[short_code, "B"] += 1
 
-        print("√ Bib/PDF/Image imported into the DataFrame")
-        print("√ Bibtex files updated in", self.bibtex_path)
+        print("+ Bib/PDF/Image imported into the DataFrame")
+        print("+ Bibtex files updated in", self.bibtex_path)
 
         # df display options
         pd.set_option('display.max_columns', None)
@@ -185,7 +187,7 @@ class Bib():
         df_backup = df
         df.index = df.index.map(reindex_function)
         if df[df.index.duplicated(keep=False)].index.empty:
-            print("√ No short code collisions in the DataFrame")
+            print("+ No short code collisions in the DataFrame")
         else:
             print("Colliding indices:")
             print(df_backup[df.index.duplicated(keep=False)])
@@ -193,8 +195,9 @@ class Bib():
 
         df = df.sort_values(by=['Category', 'Theme'], ascending=[True, True])
         df.loc[(df["B"] > 0) & (df["Link"] != "") & (df["P"] > 0), "t"] = "t"
-
-        df['Title'] = df['Title'].apply(lambda x: x[:50])
+        def title_shorter(x):
+            return x[:47] + "..." if len(x) > 50 else x
+        df['Title'] = df['Title'].apply(title_shorter)
         max_link_len = max(df['Link'].apply(lambda x: len(x)))
         df['Link'] = df['Link'].apply(lambda x: x.ljust(max_link_len))
 
@@ -207,7 +210,7 @@ class Bib():
         print(df, file=codecs.open(os.path.join(self.io_path, 'BibCheckResultAll.md'), 'w', 'utf-8'))
         print(df[df["Type"] != "book"],
               file=codecs.open(os.path.join(self.io_path, 'BibCheckResultNonBooks.md'), 'w', 'utf-8'))
-        print('√ DataFrame updated as', os.path.join(self.io_path, 'BibCheckResultAll.md'))
+        print('+ DataFrame updated as', os.path.join(self.io_path, 'BibCheckResultAll.md'))
 
         problem_non_book_df = df[
             ((df["B"] != 1) | (df["Link"] == "") | (df["P"] == 0)) & (df["Type"] != "misc") & (
@@ -224,12 +227,12 @@ class Bib():
             print("Incomplete book bibtex entries:")
             print(problem_book_df.drop(columns=['Link']))
 
-        print("√ Number of all entries:", len(df))
-        print("√ Number of incomplete entries:", len(problem_non_book_df), "non-books and", len(problem_book_df),
+        print("+ Number of all entries:", len(df))
+        print("+ Number of incomplete entries:", len(problem_non_book_df), "non-books and", len(problem_book_df),
               "books")
-        print()
         df.to_csv(os.path.join(self.io_path, 'BibCheckResultAll.csv'))
-        print("√ Results saved in", os.path.join(self.io_path, 'BibCheckResultAll.csv'))
+        print("+ Results saved in", os.path.join(self.io_path, 'BibCheckResultAll.csv'))
+        print()
         # unique_values = df['Category'].unique()
 
     def update_latex(self):
@@ -252,7 +255,7 @@ class Bib():
                 with codecs.open(bibtex_latex_file_path, 'w', "utf-8") as file:
                     file.write(bibtex_string)
 
-        print("√ Bibtex (latex) files updated in", self.bibtex_latex_path)
+        print("+ Bibtex (latex) files updated in", self.bibtex_latex_path)
         print()
 
     def generate_html_files(self):
@@ -260,11 +263,16 @@ class Bib():
         def generate_html(df, category_name):
             html = '''<html>
 <head>
+    <link href="https://fonts.googleapis.com/css2?family=Source+Serif+4:ital,opsz,wght@0,8..60,200..900;1,8..60,200..900&display=swap" rel="stylesheet">
     <style>
+        h1, h2, h3, h4 {
+            font-family: "Source Serif 4", serif;
+            font-weight: 400;
+        }
         .image {
             display: inline-block;
-            margin: 15px 10px;
-            padding: 5px 0px;
+            margin: 7.5px 7.5px;
+            padding: 0px 0px;
             height: 200px;
             <!--border: 1px solid #000;-->
             vertical-align: top; 
@@ -273,14 +281,14 @@ class Bib():
             max-height: 100%;
         }
         .title-box {
-            border: 1px solid black;
-            margin: 15px 10px;
-            padding: 5px 0px;
+            border: 2px solid red;
+            margin: 7.5px 7.5px;
+            padding: 7.5px 15px;
             height: 200px;
-            width: 123px;
+            width: 145px;
             display: inline-block;
             text-align: center;
-            vertical-align: top; 
+            vertical-align: top;
         }
     </style>
 </head>
@@ -294,27 +302,31 @@ class Bib():
             file_i = list(df.columns).index("f")
             pictures_i = list(df.columns).index("Pf")
             isna = df.isna()
-            placeholder = '<div class="image"><img src="{}" alt="placeholder"></div>'.format(
-                "https://upload.wikimedia.org/wikipedia/commons/thumb/8/87/PDF_file_icon.svg/195px-PDF_file_icon.svg.png")
+            placeholder = "https://upload.wikimedia.org/wikipedia/commons/thumb/8/87/PDF_file_icon.svg/195px-PDF_file_icon.svg.png"
             for row_i, (index, row) in enumerate(df.iterrows()):
                 if (row_i == 0) or (df.iloc[row_i, theme_i] != df.iloc[row_i - 1, theme_i]):
                     html += '<h1>{}</h1>\n'.format(df.iloc[row_i, theme_i])
                 if isna.iloc[row_i, file_i]:
-                    pass
-                    # html += '<div class="title-box"><h2>{} {}</h2></div>'.format(index, df.iloc[row_i, title_i])
+                    file = None
+                    html += '<div class="title-box"><h4>{}</h4></div>'.format(index)
                 else:
-                    text = '{}\n{}'.format(index, df.iloc[row_i, title_i])
-                    # text = '{}'.format(index)
-                    if len(text) > 120: text = text[:120] + "..."
-                    html += '<div class="title-box"><h4><a href = "{}/{}">{}</a></h4></div>\n'.format(
-                        folder_path_absolute, df.iloc[row_i, file_i], text)
+                    text = '{} {}'.format(index, df.iloc[row_i, title_i])
+                    file = '{}/{}'.format(folder_path_absolute, df.iloc[row_i, file_i])
+                    html += '<div class="title-box"><h4><a href = "{}">{}</a></h4></div>\n'.format(
+                        file, text)
                 if len(df.iloc[row_i, pictures_i]) <= 4:
-                    html += placeholder
+                    if file:
+                        html += '<div class="image"><a href="{}"><img src="{}" alt="placeholder"></a></div>\n'.format(
+                            file, placeholder)
                 else:
                     pictures_list = df.iloc[row_i, pictures_i][2:-2].split("', '")
                     for picture in pictures_list:
-                        html += '<div class="image"><img src="file:///{}/{}" alt="{}"></div>'.format(
-                            folder_path_absolute, picture, picture)
+                        if file:
+                            html += '<div class="image"><a href="{}"><img src="file:///{}/{}" alt="{}"></a></div>\n'.format(
+                                file, folder_path_absolute, picture, picture)
+                        else:
+                            html += '<div class="image"><img src="file:///{}/{}" alt="{}"></div>\n'.format(
+                                folder_path_absolute, picture, picture)
             html_file_path = os.path.join(self.html_path, category_name + '.html')
             with codecs.open(html_file_path, 'w', "utf-8") as html_file:
                 html_file.write(html)
@@ -325,8 +337,36 @@ class Bib():
         df = pd.read_csv(os.path.join(self.io_path, 'BibCheckResultAll.csv'), index_col=0)
         for category_name in self.inspect_category:
             generate_html(df, category_name)
-        print("√ HTML files saved in", self.html_path)
+        print("+ HTML files saved in", self.html_path)
         print()
+
+    def gallery_watch(self):
+
+        class MyHandler(FileSystemEventHandler):
+            def __init__(self, bib):
+                self.bib = bib
+            def on_created(self, event):
+                if event.src_path.endswith("png") or event.src_path.endswith("jpg"):
+                    print(f'File {event.src_path} has been modified')
+                    self.bib.check(show_incomplete=False)
+                    self.bib.generate_html_files()
+                    print()
+                    print("[GALLERY WATCH]")
+
+        print("[GALLERY WATCH]")
+        folder_to_watch = os.path.join(self.root_folder_path, self.pdf_path)
+
+        event_handler = MyHandler(self)
+        observer = Observer()
+        observer.schedule(event_handler, folder_to_watch, recursive=True)
+        observer.start()
+
+        try:
+            while True:
+                time.sleep(1)
+        except KeyboardInterrupt:
+            observer.stop()
+        observer.join()
 
     def collect(self):
 
@@ -389,17 +429,17 @@ class Bib():
                     move_file(pdf_file_path,
                               os.path.join(os.path.join(self.pdf_path, category), new_file_name))
                     write_to_end_of_file(os.path.join(self.bibtex_path, category + ".bib"), "\n\n" + bib_string + "\n")
-                    print("√ Renamed '" + pdf_file + "' as '" + new_file_name + "'")
-                    print("√ Moved the PDF from '" + category_folder_path + "' to '" + \
+                    print("+ Renamed '" + pdf_file + "' as '" + new_file_name + "'")
+                    print("+ Moved the PDF from '" + category_folder_path + "' to '" + \
                           os.path.join(self.root_folder_path, category) + "'")
-                    print("√ Added Bibtex to '" + os.path.join(self.bibtex_path, category + ".bib'"))
+                    print("+ Added Bibtex to '" + os.path.join(self.bibtex_path, category + ".bib'"))
                     count_collected += 1
                 else:
                     print("  Nothing changed for this item.")
         if count_collected == 0:
-            print("√ Nothing collected")
+            print("+ Nothing collected")
         else:
-            print("√ Collected", count_collected, "sources")
+            print("+ Collected", count_collected, "sources")
         print()
 
     def theme_replace(self, old, new):
@@ -426,7 +466,7 @@ class Bib():
                     author, year, theme, suffix = analyse_short_code(short_code)
                     if theme == old:
                         short_code_new = author + "-" + year + "-" + new + suffix
-                        print("√ Bibtex short code updated from", short_code, "to",
+                        print("+ Bibtex short code updated from", short_code, "to",
                               short_code_new)
                         entries[i] = left.lower() + "{" + short_code_new + "," + right
                 sorted_entries = sorted(entries, key=lambda x: x.split('{')[1].split(',')[0].strip())
@@ -448,7 +488,7 @@ class Bib():
 
                         short_code_new = author + "-" + year + "-" + new + suffix
                         file_name_new = short_code_new + " " + title
-                        print("√ File short code from", short_code, "to",
+                        print("+ File short code from", short_code, "to",
                               short_code_new, "(" + compress_string(file_name) + ")")
                         os.rename(os.path.join(category_path, file_name),
                                   os.path.join(category_path, file_name_new))
@@ -476,7 +516,7 @@ class Bib():
                     short_code, right = right.split(",", 1)
                     if short_code == old:
                         # print("- Modifying bibtex:", short_code)
-                        print("√ Bibtex short code updated from", old, "to", new)
+                        print("+ Bibtex short code updated from", old, "to", new)
                         entries[i] = left.lower() + "{" + new + "," + right
                 sorted_entries = sorted(entries, key=lambda x: x.split('{')[1].split(',')[0].strip())
                 new_bibtex = '\n\n\n'.join(sorted_entries)
@@ -492,7 +532,7 @@ class Bib():
                 if os.path.isfile(os.path.join(category_path, file_name)):
                     short_code, title = file_name.split(" ", 1)
                     if short_code == old:
-                        print("√ File short code from", old, "to",
+                        print("+ File short code from", old, "to",
                               new, "(" + compress_string(file_name) + ")")
                         file_name_new = new + " " + title
                         os.rename(os.path.join(category_path, file_name),
@@ -530,7 +570,7 @@ class Bib():
             input_data = file.read()
 
         short_code_entries = collect_short_code_from_typst(input_data)
-        print("√ Number of references in input:", len(short_code_entries))
+        print("+ Number of references in input:", len(short_code_entries))
         # print(short_code_entries)
         collected_bib = []
         bibtex_path = self.bibtex_path
@@ -558,10 +598,10 @@ class Bib():
                         collected_bib.append(entry)
                         short_code_entries.remove(short_code)
                 if count > 0:
-                    print("√ Collected", count, "entries from category: ", category_name)
-        print("√ In total, collected", len(collected_bib), "entries")
+                    print("+ Collected", count, "entries from category: ", category_name)
+        print("+ In total, collected", len(collected_bib), "entries")
         if short_code_entries:
-            print("× Remaining references:", short_code_entries)
+            print("- Remaining references:", short_code_entries)
         # Write the selected BibTeX entries to a new file
         new_bibtex = main_parser('\n\n\n'.join(collected_bib))
         with codecs.open(os.path.join(self.io_path, output), 'w', "utf-8") as file:
