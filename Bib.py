@@ -271,10 +271,9 @@ class Bib():
         }
         .image {
             display: inline-block;
-            margin: 7.5px 7.5px;
-            padding: 0px 0px;
+            margin: 7.5px;
+            padding: 0px;
             height: 200px;
-            <!--border: 1px solid #000;-->
             vertical-align: top; 
         }
         .image img {
@@ -282,9 +281,9 @@ class Bib():
         }
         .title-box {
             border: 2px solid red;
-            margin: 7.5px 7.5px;
+            margin: 7.5px;
             padding: 7.5px 15px;
-            height: 200px;
+            height: 181.25px;
             width: 145px;
             display: inline-block;
             text-align: center;
