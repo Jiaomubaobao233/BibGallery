@@ -69,7 +69,7 @@ Encode the BibTeX for LaTeX and save them as separate files.
 
 ### `Bib.generate_html_files(self)`
 
-Generate HTML galleries using the pictures. Pictures are grouped by theme and link to the PDF files.
+Generate HTML galleries using the pictures. Pictures are grouped by theme and titles link to the PDF files. Uses the .csv results saved in `Bib.check(self)`.
 
 ### `Bib.collect(self)`
 

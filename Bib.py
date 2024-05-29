@@ -111,10 +111,12 @@ class Bib():
                                                 "Type": [""],
                                                 "B": [0],
                                                 "P": [0],
+                                                "f": [None],
+                                                "Pf": [[]],
                                                 "Link": [""]}, index=[string])])
 
         print("[CHECK]")
-        df = pd.DataFrame(columns=["Category", "Theme", "Type", "t", "B", "P", "Title", "Link"])
+        df = pd.DataFrame(columns=["Category", "Theme", "Type", "t", "B", "P", "Title", "f", "Pf", "Link"])
         debug_switch = False
 
         for category_file in os.listdir(self.bibtex_path):
@@ -147,7 +149,10 @@ class Bib():
                         if file_type.lower() == "pdf":
                             df.loc[short_code, "Link"] = "[](<" + os.path.join(category_path,
                                                                                file_name) + ">)"
-                        if file_type.lower() in ["jpg", "png"]: df.loc[short_code, "P"] += 1
+                            df.loc[short_code, "f"] = file_name
+                        if file_type.lower() in ["jpg", "png"]:
+                            df.loc[short_code, "P"] += 1
+                            df.loc[short_code, "Pf"].append(file_name)
 
                 # 5. Import literature from bibtex files into DataFrame
                 with codecs.open(bibtex_file_path, "r", "utf-8") as file:
@@ -223,6 +228,8 @@ class Bib():
         print("√ Number of incomplete entries:", len(problem_non_book_df), "non-books and", len(problem_book_df),
               "books")
         print()
+        df.to_csv(os.path.join(self.io_path, 'BibCheckResultAll.csv'))
+        print("√ Results saved in", os.path.join(self.io_path, 'BibCheckResultAll.csv'))
         # unique_values = df['Category'].unique()
 
     def update_latex(self):
@@ -250,115 +257,74 @@ class Bib():
 
     def generate_html_files(self):
 
-        def fetch_images(folder_path):
-            image_extensions = ['.png', '.jpg']
-            images = []
-            for file in os.listdir(folder_path):
-                if file.lower().endswith(tuple(image_extensions)):
-                    images.append(file)
-            return images
-
-        def generate_html(image_list, folder_path):
-            def sort_key(image_string):
-                # Extract the required parts from the image filename
-                filename = os.path.splitext(image_string)[0]
-                [shortcode, title] = filename.split(' ', 1)
-                pattern = r"-[0-9]{4}-"
-
-                match = re.search(pattern, shortcode)
-                start_index = match.start()
-                author = shortcode[:start_index]
-                year = shortcode[start_index + 1:start_index + 5]
-                category = shortcode[start_index + 6:]
-                # Sort the parts based on the required order
-                return category, -int(year), author, title
-
-            image_list.sort(key=sort_key)
-            folder_path_absolute = os.path.join(self.root_folder_path_absolute, folder_path).replace('\\', '/')
-            placeholder = "https://upload.wikimedia.org/wikipedia/commons/thumb/8/87/PDF_file_icon.svg/195px-PDF_file_icon.svg.png"
-            html = '''
-            <html>
-            <head>
-            <style>
-            .image {
-                display: inline-block;
-                margin: 15px 10px;
-                padding: 5px 0px;
-                height: 200px;
-                text-align: center;
-                <!--border: 1px solid #000;-->
-            }
-            .image img {
-                max-height: 100%;
-            }
-            </style>
-            </head>
-            <body>
-            '''
-            themes = [analyse_short_code(x.split(" ", 1)[0])[2] for x in image_list]
-            found_short_codes = set()
-            for i, image in enumerate(image_list):
-                # Create the hyperlink to the corresponding PDF file
-
-                if themes[i] != themes[i - 1]:
-                    html += '<h1>{}</h1>'.format(themes[i])
-                image_name = image.split(" ", 1)[0]
-                pdf_file = None
-                for file in os.listdir(folder_path):
-                    if file.startswith(image_name) and file.lower().endswith('.pdf'):
-                        pdf_file = file
-                        break
-                if pdf_file:
-                    hyperlink = '<a href="{}/{}"><img src="file:///{}/{}" alt="{}"></a>'.format(
-                        folder_path_absolute, pdf_file.replace('\\', '/'), folder_path_absolute,
-                        image,
-                        image
-                    )
+        def generate_html(df, category_name):
+            html = '''<html>
+<head>
+    <style>
+        .image {
+            display: inline-block;
+            margin: 15px 10px;
+            padding: 5px 0px;
+            height: 200px;
+            <!--border: 1px solid #000;-->
+            vertical-align: top; 
+        }
+        .image img {
+            max-height: 100%;
+        }
+        .title-box {
+            border: 1px solid black;
+            margin: 15px 10px;
+            padding: 5px 0px;
+            height: 200px;
+            width: 123px;
+            display: inline-block;
+            text-align: center;
+            vertical-align: top; 
+        }
+    </style>
+</head>
+<body>
+'''
+            folder_path_absolute = os.path.join(self.root_folder_path_absolute, self.pdf_path, category_name).replace(
+                '\\', '/')
+            df = df[df["Category"] == category_name]
+            theme_i = list(df.columns).index("Theme")
+            title_i = list(df.columns).index("Title")
+            file_i = list(df.columns).index("f")
+            pictures_i = list(df.columns).index("Pf")
+            isna = df.isna()
+            placeholder = '<div class="image"><img src="{}" alt="placeholder"></div>'.format(
+                "https://upload.wikimedia.org/wikipedia/commons/thumb/8/87/PDF_file_icon.svg/195px-PDF_file_icon.svg.png")
+            for row_i, (index, row) in enumerate(df.iterrows()):
+                if (row_i == 0) or (df.iloc[row_i, theme_i] != df.iloc[row_i - 1, theme_i]):
+                    html += '<h1>{}</h1>\n'.format(df.iloc[row_i, theme_i])
+                if isna.iloc[row_i, file_i]:
+                    pass
+                    # html += '<div class="title-box"><h2>{} {}</h2></div>'.format(index, df.iloc[row_i, title_i])
                 else:
-                    hyperlink = '<img src="file:///{}/{}" alt="{}">'.format(
-                        folder_path_absolute, image, image
-                    )
-                found_short_codes.add(image_name)
-                html += '<div class="image">{}</div>'.format(hyperlink)
-                
-                if (i == len(image_list) - 1) or (themes[i] != themes[i + 1]):
-                    # add pubs without images
-                    for file in os.listdir(folder_path):
-                        if file.lower().endswith('.pdf'):
-                            short_code = file.split(" ", 1)[0]
-                            author, year, theme, suffix = analyse_short_code(short_code)
-                            if (theme == themes[i - 1]) and (short_code not in found_short_codes):
-                                print("  No images for", file.split(" ", 1)[0])
-                                hyperlink = '<a href="{}/{}"><img src="{}" alt="{}"></a>'.format(
-                                    folder_path_absolute, file.replace('\\', '/'),
-                                    placeholder,
-                                    placeholder
-                                )
-                                html += '<div class="image">{}</div>'.format(hyperlink)
-                    found_short_codes = set()
-            html += '''
-            </body>
-            </html>
-            '''
-            return html
+                    text = '{}\n{}'.format(index, df.iloc[row_i, title_i])
+                    # text = '{}'.format(index)
+                    if len(text) > 120: text = text[:120] + "..."
+                    html += '<div class="title-box"><h4><a href = "{}/{}">{}</a></h4></div>\n'.format(
+                        folder_path_absolute, df.iloc[row_i, file_i], text)
+                if len(df.iloc[row_i, pictures_i]) <= 4:
+                    html += placeholder
+                else:
+                    pictures_list = df.iloc[row_i, pictures_i][2:-2].split("', '")
+                    for picture in pictures_list:
+                        html += '<div class="image"><img src="file:///{}/{}" alt="{}"></div>'.format(
+                            folder_path_absolute, picture, picture)
+            html_file_path = os.path.join(self.html_path, category_name + '.html')
+            with codecs.open(html_file_path, 'w', "utf-8") as html_file:
+                html_file.write(html)
 
         print("[GENERATE HTML FILES]")
         if not os.path.exists(self.html_path): os.makedirs(self.html_path)
-        # Generate html galleries
+
+        df = pd.read_csv(os.path.join(self.io_path, 'BibCheckResultAll.csv'), index_col=0)
         for category_name in self.inspect_category:
-            folder_path = os.path.join(self.pdf_path, category_name)
-
-            # Fetch the images in the folder
-            image_list = fetch_images(folder_path)
-
-            # Generate the HTML code
-            html_code = generate_html(image_list, folder_path)
-
-            # Save the HTML code to a file
-            html_file_path = os.path.join(self.html_path, "Gallery - " + category_name + '.html')
-            with codecs.open(html_file_path, 'w', "utf-8") as html_file:
-                html_file.write(html_code)
-
+            generate_html(df, category_name)
         print("√ HTML files saved in", self.html_path)
         print()
 
