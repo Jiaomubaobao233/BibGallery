@@ -217,7 +217,7 @@ class Bib():
                     df["Type"] != "book")]
         if show_incomplete:
             print("Incomplete non-book bibtex entries:")
-            print(problem_non_book_df.drop(columns=['Link']))
+            print(problem_non_book_df.drop(columns=['Link', 'f', 'Pf']))
 
         problem_book_df = df[
             ((df["B"] != 1) | (df["Link"] == "") | (df["P"] == 0)) & (df["Type"] != "misc") & (
@@ -225,7 +225,7 @@ class Bib():
 
         if show_incomplete and check_books:
             print("Incomplete book bibtex entries:")
-            print(problem_book_df.drop(columns=['Link']))
+            print(problem_book_df.drop(columns=['Link', 'f', 'Pf']))
 
         print("+ Number of all entries:", len(df))
         print("+ Number of incomplete entries:", len(problem_non_book_df), "non-books and", len(problem_book_df),
