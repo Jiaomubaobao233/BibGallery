@@ -323,10 +323,8 @@ class Bib():
         }
                 
         .main {
-            display: inline-block;
-            margin-left: 330px; /* Same as the width of the sidenav */
-            padding-left: 13px;
-            margin-top: -15px;
+            margin-left: 345px; /* Same as the width of the sidenav */
+            overflow-x: hidden;
         }
     </style>
 </head>
