@@ -13,6 +13,7 @@ from watchdog.observers import Observer
 from watchdog.events import FileSystemEventHandler
 import time
 
+
 def analyse_short_code(string):
     string = string.split("::")[-1]
     pattern = r"-(\d{4})-"  # regex pattern to match four-digit numbers
@@ -195,8 +196,10 @@ class Bib():
 
         df = df.sort_values(by=['Category', 'Theme'], ascending=[True, True])
         df.loc[(df["B"] > 0) & (df["Link"] != "") & (df["P"] > 0), "t"] = "t"
+
         def title_shorter(x):
             return x[:47] + "..." if len(x) > 50 else x
+
         df['Title'] = df['Title'].apply(title_shorter)
         max_link_len = max(df['Link'].apply(lambda x: len(x)))
         df['Link'] = df['Link'].apply(lambda x: x.ljust(max_link_len))
@@ -261,7 +264,7 @@ class Bib():
     def generate_html_files(self):
 
         def generate_html(df, category_name):
-            html = '''<html>
+            html_A = '''<html>
 <head>
     <link href="https://fonts.googleapis.com/css2?family=Source+Serif+4:ital,opsz,wght@0,8..60,200..900;1,8..60,200..900&display=swap" rel="stylesheet">
     <style>
@@ -269,6 +272,7 @@ class Bib():
             font-family: "Source Serif 4", serif;
             font-weight: 400;
         }
+        
         .image {
             display: inline-block;
             margin: 7.5px;
@@ -276,9 +280,11 @@ class Bib():
             height: 200px;
             vertical-align: top; 
         }
+        
         .image img {
             max-height: 100%;
         }
+        
         .title-box {
             border: 2px solid red;
             margin: 7.5px;
@@ -289,10 +295,57 @@ class Bib():
             text-align: center;
             vertical-align: top;
         }
+
+        .title-box h4 a {
+            text-decoration: none;
+            color: black;
+        }
+        
+        .sidenav {
+            height: 100%;
+            width: 330px;
+            position: fixed;
+            z-index: 1;
+            top: 0;
+            left: 0;
+            background-color: #d1d1d1;
+            overflow-x: hidden;
+        }
+        
+        .sidenav a {
+            font-family: "Source Serif 4", serif;
+            text-decoration: none;
+            display: block;
+            color: black;
+            padding-left: 25px;
+            padding-right: 25px;
+            padding-bottom: -10px;
+        }
+                
+        .main {
+            display: inline-block;
+            margin-left: 330px; /* Same as the width of the sidenav */
+            padding-left: 13px;
+            margin-top: -15px;
+        }
     </style>
 </head>
 <body>
+
+<div class="sidenav">'''
+            html_B = '''
+</div>
+
+
+<div class="main">
 '''
+            html_C = '''
+</div>
+</body>
+</html>'''
+
+            html_main = ""
+            html_navbar_main = ""
             folder_path_absolute = os.path.join(self.root_folder_path_absolute, self.pdf_path, category_name).replace(
                 '\\', '/')
             df = df[df["Category"] == category_name]
@@ -304,36 +357,48 @@ class Bib():
             placeholder = "https://upload.wikimedia.org/wikipedia/commons/thumb/8/87/PDF_file_icon.svg/195px-PDF_file_icon.svg.png"
             for row_i, (index, row) in enumerate(df.iterrows()):
                 if (row_i == 0) or (df.iloc[row_i, theme_i] != df.iloc[row_i - 1, theme_i]):
-                    html += '<h1>{}</h1>\n'.format(df.iloc[row_i, theme_i])
+                    theme_text = df.iloc[row_i, theme_i].replace("-", " ")
+                    html_main += '<h1 id="{}">{}</h1>\n'.format(df.iloc[row_i, theme_i], theme_text)
+                    html_navbar_main += '<h3><a style="padding-left: 60px" href="#{}">{}</a></h3>\n'.format(df.iloc[row_i, theme_i], theme_text)
                 if isna.iloc[row_i, file_i]:
                     file = None
-                    html += '<div class="title-box"><h4>{}</h4></div>'.format(index)
+                    html_main += '<div class="title-box"><h4>{}</h4></div>'.format(index)
                 else:
                     text = '{} {}'.format(index, df.iloc[row_i, title_i])
                     file = '{}/{}'.format(folder_path_absolute, df.iloc[row_i, file_i])
-                    html += '<div class="title-box"><h4><a href = "{}">{}</a></h4></div>\n'.format(
+                    html_main += '<div class="title-box"><h4><a href = "{}">{}</a></h4></div>\n'.format(
                         file, text)
                 if len(df.iloc[row_i, pictures_i]) <= 4:
                     if file:
-                        html += '<div class="image"><a href="{}"><img src="{}" alt="placeholder"></a></div>\n'.format(
+                        html_main += '<div class="image"><a href="{}"><img src="{}" alt="placeholder"></a></div>\n'.format(
                             file, placeholder)
                 else:
                     pictures_list = df.iloc[row_i, pictures_i][2:-2].split("', '")
                     for picture in pictures_list:
                         if file:
-                            html += '<div class="image"><a href="{}"><img src="file:///{}/{}" alt="{}"></a></div>\n'.format(
+                            html_main += '<div class="image"><a href="{}"><img src="file:///{}/{}" alt="{}"></a></div>\n'.format(
                                 file, folder_path_absolute, picture, picture)
                         else:
-                            html += '<div class="image"><img src="file:///{}/{}" alt="{}"></div>\n'.format(
+                            html_main += '<div class="image"><img src="file:///{}/{}" alt="{}"></div>\n'.format(
                                 folder_path_absolute, picture, picture)
-            html_file_path = os.path.join(self.html_path, category_name + '.html')
-            with codecs.open(html_file_path, 'w', "utf-8") as html_file:
+
+            html_navbar = ''
+            for i, (category, link) in enumerate(self.html_file_path_dict.items()):
+                html_navbar += '<h2><a href="{}">{}</a></h2>\n'.format(link, category.replace("-", " "))
+                if category == category_name:
+                    html_navbar += html_navbar_main
+
+            html = html_A + html_navbar + html_B + html_main + html_C
+            with codecs.open(os.path.join(self.html_path, self.html_file_path_dict[category_name]), 'w', "utf-8") as html_file:
                 html_file.write(html)
 
         print("[GENERATE HTML FILES]")
         if not os.path.exists(self.html_path): os.makedirs(self.html_path)
 
         df = pd.read_csv(os.path.join(self.io_path, 'BibCheckResultAll.csv'), index_col=0)
+        print(self.inspect_category)
+        print(self.html_path, self.root_folder_path)
+        self.html_file_path_dict = {category_name: category_name + '.html' for category_name in self.inspect_category}
         for category_name in self.inspect_category:
             generate_html(df, category_name)
         print("+ HTML files saved in", self.html_path)
@@ -344,6 +409,7 @@ class Bib():
         class MyHandler(FileSystemEventHandler):
             def __init__(self, bib):
                 self.bib = bib
+
             def on_created(self, event):
                 if event.src_path.endswith("png") or event.src_path.endswith("jpg"):
                     print(f'File {event.src_path} has been modified')
