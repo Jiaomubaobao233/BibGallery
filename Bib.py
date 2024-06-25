@@ -394,8 +394,6 @@ class Bib():
         if not os.path.exists(self.html_path): os.makedirs(self.html_path)
 
         df = pd.read_csv(os.path.join(self.io_path, 'BibCheckResultAll.csv'), index_col=0)
-        print(self.inspect_category)
-        print(self.html_path, self.root_folder_path)
         self.html_file_path_dict = {category_name: category_name + '.html' for category_name in self.inspect_category}
         for category_name in self.inspect_category:
             generate_html(df, category_name)
