@@ -45,16 +45,31 @@ root
 
 ## Initialization
 
+### `Bib(self, inspect_categories, root_folder_path="", additional_categories=[], bibtex_folder="bib", bibtex_latex_folder="bib_latex", pdf_folder="PDF", html_folder="Gallery", pdf_collect_folder="to_collect", io_folder="")`
+
 Set up by specifying the categories to inspect. The root folder and subfolders can be configured if necessary.
 
+Parameters:
+
+- inspect_categories : list of str. List of categories
+- root_folder_path : str, default: ""
+- additional_categories : list of str, default: []. List of categories that you only have bibtex files. E.g. bibtex from your collaborators or temporary bibtex files
+- bibtex_folder : str, default: "bib"
+- bibtex_latex_folder : str, default: "bib_latex"
+- pdf_folder : str, default: "PDF"
+- html_folder : str, default: "Gallery"
+- pdf_collect_folder : str, default: "to_collect"
+- io_folder : str, default: ""
+
+Minimal working example:
 ```
 from Bib import Bib
-bib = Bib(inspect_category=["Category1", "Category2"])
+bib = Bib(inspect_categories=["Category1", "Category2"])
 ```
 
 ## Methods
 
-### `Bib.check(self)`
+### `Bib.check(self, update_bibtex=None, show_incomplete=True, check_books=False)`
 
 Parse the BibTeX. If encoded for LaTeX, decode as Unicode plain text. Check if BibTeX/PDF/images are missing for any
 entry. Only if all three are present, an entry will be considered complete. Incomplete entries will be listed in the
@@ -62,6 +77,9 @@ terminal. All results will be saved in `BibCheckResultAll.md` and `BibCheckResul
 will be marked `t` in the results. Reviewing the results in Visual Studio Code allows you to click the links to go to
 the PDF files easily.
 
+Parameters:
+- update_bibtex : str, name of the additional bibtex file for replacing existing bibtex
+- 
 ### `Bib.update_latex(self)`
 
 Encode the BibTeX for LaTeX and save them as separate files.
