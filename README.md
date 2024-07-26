@@ -1,6 +1,6 @@
 # BibGallery
 ![img.png](img.png)
-BibGallery is a light, simple literature management library that organizes BibTeX, PDF, and image files. It generates
+BibGallery is a light, simple literature management library on Python that organizes BibTeX, PDF, and image files. It generates
 HTML files to display the saved images for the researcher to browse.
 
 You can benefit from BibGallery if
