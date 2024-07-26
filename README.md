@@ -36,9 +36,12 @@ root
 │ └ Category2.bib
 └ PDF
   ├ Category1
-  │ ├ Author-Year-Theme Name of Publication.pdf
-  │ ├ Author-Year-Theme Name of Publication.jpg
-  │ └ Author-Year-Theme Name of Publication2.png
+  │ ├ Author-Year-Theme Name of One Publication.pdf
+  │ ├ Author-Year-Theme Name of One Publication.jpg
+  │ ├ Author-Year-Theme Name of One Publication2.png
+  │ ├ Author-Year-Theme Name of Another Publication.pdf
+  │ ├ Author-Year-Theme Name of Another Publication.jpg
+  │ └ ...
   └ Category2
     └ ...
 ```
@@ -73,20 +76,22 @@ bib = Bib(inspect_categories=["Category1", "Category2"])
 
 Parse the BibTeX. If encoded for LaTeX, decode as Unicode plain text. Check if BibTeX/PDF/images are missing for any
 entry. Only if all three are present, an entry will be considered complete. Incomplete entries will be listed in the
-terminal. All results will be saved in `BibCheckResultAll.md` and `BibCheckResultNonBooks.md`. Only complete entries
+terminal. All results will be saved in `BibCheckResultAll.md`, `BibCheckResultNonBooks.md` and `BibCheckResultAll.csv`. Only complete entries
 will be marked `t` in the results. Reviewing the results in Visual Studio Code allows you to click the links to go to
 the PDF files easily.
 
 Parameters:
-- update_bibtex : str, name of the additional bibtex file for replacing existing bibtex
-- 
+- update_bibtex : str, default: None. Name of the additional bibtex file in `io_folder` for replacing existing bibtex
+- show_incomplete : bool, default: True. Show incomplete entries in terminal
+- check_books : bool, default: False. Show incomplete book entries in terminal
+
 ### `Bib.update_latex(self)`
 
-Encode the BibTeX for LaTeX and save them as separate files.
+Encode the BibTeX for LaTeX and save them as separate files in `self.bibtex_latex_folder`.
 
 ### `Bib.generate_html_files(self)`
 
-Generate HTML galleries using the pictures. Pictures are grouped by theme and titles link to the PDF files. Uses the .csv results saved in `Bib.check(self)`.
+Generate HTML galleries using the pictures in `self.html_folder`. Pictures are grouped by theme and titles link to the PDF files. Uses `BibCheckResultAll.csv` saved in `Bib.check(self)`.
 
 ### `Bib.gallery_watch(self)`
 
@@ -94,10 +99,10 @@ Update HTML galleries automatically each time a new screenshot is saved.
 
 ### `Bib.collect(self)`
 
-Create new entries based on PDF files. Rename and move them into the main folders and extract BibTeX based on the PDF
+Create new entries based on PDF files in `self.pdf_collect_folder`. Rename and move them into the main category folders and extract BibTeX based on the PDF
 metadata. The pdf should be renamed as its theme.
 
-The category of the PDF is specified by its parent folder. By default, the PDF to collect should be put as:
+The category of the PDF is specified by its parent folder. By default, the PDF to collect should be put as
 
 ```
 root
@@ -106,17 +111,41 @@ root
     └ Theme.pdf
 ```
 
+and will be converted into
+
+
+```
+root
+└ PDF
+  └ Category
+    └ Author-Year-Theme Name of Publication.pdf
+```
+
+
 If themes collide, simply leave additional spaces at the end.
 
-### `Bib.select_from_typst(self, input, output)`
+### `Bib.select_from_typst(self, input="input.typ", output="selected.bib")`
 
 Inspect the entries cited in the Typst file and extract only the BibTeX used. Save both the plain text and LaTeX
 version.
+
+Parameters:
+- input : str, default: "input.typ". Name of the typst file in `self.io_folder`
+- output : str, default: "selected.bib". Name of the bibtex file for selected entries in `self.io_folder`
 
 ### `Bib.theme_replace(self, old, new)`
 
 Rename a theme from old to new. Affects BibTeX, PDFs and images.
 
+Parameters:
+- old : str. Old theme
+- new : str. New theme
+
+
 ### `Bib.short_code_replace(self, old, new)`
 
 Rename a short code from old to new. Affects BibTeX, PDFs and images.
+
+Parameters:
+- old : str. Old short code
+- new : str. New short code
