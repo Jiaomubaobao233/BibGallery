@@ -503,7 +503,7 @@ class Bib():
                 pdf_file_path = os.path.join(category_folder_path, pdf_file)
 
                 if pdf_file[-4:] != ".pdf": continue
-                theme = pdf_file[:-4].strip()
+                theme = pdf_file[:-4].strip().replace(" ", "-")
                 result = pdf2bib.pdf2bib(pdf_file_path)
                 bib_string = result['bibtex']
 
