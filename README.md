@@ -100,7 +100,7 @@ Generate HTML galleries using the pictures in `self.html_folder`. Pictures are g
 
 Update HTML galleries automatically each time a new screenshot is saved.
 
-### `Bib.collect(self, enforce=True)`
+### `Bib.collect(self, enforce=False)`
 
 Create new entries based on PDF files in `self.pdf_collect_folder`. Rename and move them into the main category folders and extract BibTeX based on the PDF
 metadata. The PDF should be renamed as its theme.
