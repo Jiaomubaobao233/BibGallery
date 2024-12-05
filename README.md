@@ -1,4 +1,5 @@
 # BibGallery
+
 ![img.png](img.png)
 BibGallery is a light, simple literature management library on Python that organizes BibTeX, PDF, and image files. It generates
 HTML files to display the saved images for the researcher to browse.
@@ -23,7 +24,7 @@ Literatures have to be organized into **categories** and assigned **themes**. Ea
 
 Short codes (also known as citation keys) in BibTeX files should be formulated as `Author-Year-Theme`, for
 example, `Akbarzadeh-2020-Graphic-Statics-Table`. In case of short code collisions, add `-Number` to the end, for
-example, `Akbarzadeh-2020-Graphic-Statics-Table-1` and `Akbarzadeh-2020-Graphic-Statics-Table-2`.
+example, `Akbarzadeh-2020-Graphic-Statics-Table` and `Akbarzadeh-2020-Graphic-Statics-Table-2`.
 
 Your file structure should be:
 
@@ -65,6 +66,7 @@ Parameters:
 - io_folder : str, default: ""
 
 Minimal working example:
+
 ```
 from Bib import Bib
 bib = Bib(inspect_categories=["Category1", "Category2"])
@@ -81,6 +83,7 @@ will be marked `t` in the results. Reviewing the results in Visual Studio Code a
 the PDF files easily.
 
 Parameters:
+
 - update_bibtex : str, default: None. Name of the additional bibtex file in `io_folder` for replacing existing bibtex
 - show_incomplete : bool, default: True. Show incomplete entries in terminal
 - check_books : bool, default: False. Show incomplete book entries in terminal
@@ -97,10 +100,10 @@ Generate HTML galleries using the pictures in `self.html_folder`. Pictures are g
 
 Update HTML galleries automatically each time a new screenshot is saved.
 
-### `Bib.collect(self)`
+### `Bib.collect(self, enforce=True)`
 
 Create new entries based on PDF files in `self.pdf_collect_folder`. Rename and move them into the main category folders and extract BibTeX based on the PDF
-metadata. The pdf should be renamed as its theme.
+metadata. The PDF should be renamed as its theme.
 
 The category of the PDF is specified by its parent folder. By default, the PDF to collect should be put as
 
@@ -113,7 +116,6 @@ root
 
 and will be converted into
 
-
 ```
 root
 └ PDF
@@ -121,8 +123,9 @@ root
     └ Author-Year-Theme Name of Publication.pdf
 ```
 
-
 If themes collide, simply leave additional spaces at the end.
+
+If the short code collides with existing ones. An error will be raised. However, if  `enforce=True`, numbers will be added to the end, starting with "-2".
 
 ### `Bib.select_from_typst(self, input="input.typ", output="selected.bib")`
 
@@ -130,6 +133,7 @@ Inspect the entries cited in the Typst file and extract only the BibTeX used. Sa
 version.
 
 Parameters:
+
 - input : str, default: "input.typ". Name of the typst file in `self.io_folder`
 - output : str, default: "selected.bib". Name of the bibtex file for selected entries in `self.io_folder`
 
@@ -138,14 +142,15 @@ Parameters:
 Rename a theme from old to new. Affects BibTeX, PDFs and images.
 
 Parameters:
+
 - old : str. Old theme
 - new : str. New theme
-
 
 ### `Bib.short_code_replace(self, old, new)`
 
 Rename a short code from old to new. Affects BibTeX, PDFs and images.
 
 Parameters:
+
 - old : str. Old short code
 - new : str. New short code
